@@ -1,0 +1,16 @@
+cargo-features = ["edition"]
+
+[package]
+name = "storyforest_server"
+version = "0.1.0"
+authors = ["Colin Reeder <vpzomtrrfrt@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+rocket = "0.3.14"
+rocket_codegen = "0.3.14"
+rocket_contrib = "0.3.14"
+diesel = { version = "1.3.2", features = ["r2d2", "postgres"] }
+serde_derive = "1.0.70"
+serde = "1.0.70"
+diesel_derives = "1.3.0"

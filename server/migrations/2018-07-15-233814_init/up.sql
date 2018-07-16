@@ -1,0 +1,12 @@
+-- Your SQL goes here
+
+CREATE TABLE tree (
+	id SERIAL PRIMARY KEY,
+	name TEXT NOT NULL
+);
+
+CREATE TABLE node (
+	id SERIAL PRIMARY KEY,
+	tree INTEGER REFERENCES tree(id),
+	text TEXT NOT NULL
+);
