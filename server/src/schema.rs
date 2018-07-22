@@ -1,7 +1,7 @@
 table! {
     node (id) {
         id -> Int4,
-        tree -> Nullable<Int4>,
+        tree -> Int4,
         text -> Text,
         parent -> Nullable<Int4>,
     }

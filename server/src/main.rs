@@ -6,8 +6,7 @@ extern crate diesel;
 #[macro_use]
 extern crate quick_error;
 
-use serde_derive::Serialize;
-use diesel::deserialize::Queryable;
+use serde_derive::{Deserialize, Serialize};
 use diesel::{ExpressionMethods, RunQueryDsl, QueryDsl};
 
 mod schema;
@@ -92,6 +91,35 @@ fn trees_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contri
     }
 }
 
+#[derive(Deserialize)]
+struct NodePostQuery {
+    pub parent: i32,
+    pub text: String
+}
+
+#[post("/nodes", data = "<query>")]
+fn nodes_post(query: rocket_contrib::Json<NodePostQuery>, state: rocket::State<ServerState>) -> Result<rocket_contrib::Json<i32>, Error> {
+    let conn = state.conn.get()?;
+    let tree: i32 = {
+        use self::schema::node::dsl;
+        dsl::node
+            .select(dsl::tree)
+            .first(&conn)
+    }?;
+    let res = {
+        use self::schema::node::dsl;
+        diesel::insert_into(dsl::node)
+            .values((
+                dsl::parent.eq(query.parent),
+                dsl::tree.eq(tree),
+                dsl::text.eq(query.text.to_owned())
+            ))
+            .returning(dsl::id)
+            .get_result(&conn)
+    }?;
+    Ok(rocket_contrib::Json(res))
+}
+
 struct ServerState {
     conn: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>
 }
@@ -106,6 +134,6 @@ fn main() {
                 .build(diesel::r2d2::ConnectionManager::new(database_url))
                 .expect("Failed to construct connection pool")
         })
-        .mount("/", routes![trees_get])
+        .mount("/", routes![trees_get, nodes_post])
         .launch();
 }
