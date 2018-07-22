@@ -1,7 +1,7 @@
 cargo-features = ["edition"]
 
 [package]
-name = "storyforest_server"
+name = "storyforest_api_server"
 version = "0.1.0"
 authors = ["Colin Reeder <vpzomtrrfrt@gmail.com>"]
 edition = "2018"
