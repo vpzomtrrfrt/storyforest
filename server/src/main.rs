@@ -120,6 +120,54 @@ fn nodes_post(query: rocket_contrib::Json<NodePostQuery>, state: rocket::State<S
     Ok(rocket_contrib::Json(res))
 }
 
+#[derive(Serialize)]
+struct StoryNode {
+    pub id: i32,
+    pub text: String
+}
+
+#[derive(Serialize)]
+struct Story {
+    pub tree: i32,
+    pub nodes: Vec<StoryNode>
+}
+
+#[get("/nodes/<id>/story")]
+fn nodes_story_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contrib::Json<Story>, Error> {
+    let conn = state.conn.get()?;
+    let mut current_id = id;
+    let mut nodes = Vec::new();
+    #[derive(Queryable)]
+    pub struct StoryNodeRes {
+        text: String,
+        parent: Option<i32>,
+        tree: i32
+    }
+    loop {
+        let res: StoryNodeRes = {
+            use self::schema::node::dsl;
+            dsl::node
+                .filter(dsl::id.eq(current_id))
+                .select((dsl::text, dsl::parent, dsl::tree))
+                .first(&conn)
+        }?;
+        nodes.push(StoryNode {
+            id: current_id,
+            text: res.text
+        });
+        if let Some(parent) = res.parent {
+            current_id = parent;
+        }
+        else {
+            nodes.reverse();
+            return Ok(rocket_contrib::Json(Story {
+                tree: res.tree,
+                nodes
+            }));
+        }
+    }
+}
+
 struct ServerState {
     conn: diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>>
 }
@@ -134,6 +182,6 @@ fn main() {
                 .build(diesel::r2d2::ConnectionManager::new(database_url))
                 .expect("Failed to construct connection pool")
         })
-        .mount("/", routes![trees_get, nodes_post])
+        .mount("/", routes![trees_get, nodes_post, nodes_story_get])
         .launch();
 }
