@@ -38,10 +38,17 @@ impl<'r> rocket::response::Responder<'r> for Error {
     }
 }
 
-#[derive(Queryable, Serialize)]
-struct RootNode {
+#[derive(Queryable)]
+struct TreeNodeQuery {
+    pub id: i32,
+    pub text: String
+}
+
+#[derive(Serialize)]
+struct TreeNode {
     id: i32,
-    text: String
+    text: String,
+    children: Option<Vec<TreeNode>>
 }
 
 #[derive(Queryable, Serialize)]
@@ -54,7 +61,23 @@ struct Tree {
 struct TreeDetail {
     id: i32,
     name: String,
-    roots: Vec<RootNode>
+    roots: Vec<TreeNode>
+}
+
+#[derive(Queryable)]
+struct NodeChild {
+    id: i32,
+    text: String,
+    parent: Option<i32>
+}
+
+fn get_children(parents: &[i32], conn: &diesel::pg::PgConnection) -> Result<Vec<NodeChild>, Error> {
+    use self::schema::node::dsl;
+    dsl::node
+        .filter(dsl::parent.eq(diesel::dsl::any(parents)))
+        .select((dsl::id, dsl::text, dsl::parent))
+        .load(conn)
+        .map_err(|e| e.into())
 }
 
 #[get("/trees/<id>")]
@@ -72,8 +95,30 @@ fn trees_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contri
             .filter(dsl::tree.eq(id))
             .filter(dsl::parent.is_null())
             .select((dsl::id, dsl::text))
-            .load::<RootNode>(&conn)
+            .load::<TreeNodeQuery>(&conn)
     }?;
+    let res3 = get_children(&res2.iter().map(|q| q.id).collect::<Vec<_>>(), &conn)?;
+    let mut roots: Vec<_> = res2.into_iter().map(|n| {
+        TreeNode {
+            children: Some(Vec::new()),
+            id: n.id,
+            text: n.text,
+        }
+    }).collect();
+    for child in res3 {
+        for root in roots.iter_mut() {
+            if Some(root.id) == child.parent {
+                if let Some(ref mut children) = root.children {
+                    children.push(TreeNode {
+                        id: child.id,
+                        text: child.text,
+                        children: None
+                    });
+                    break;
+                }
+            }
+        }
+    }
     if res1.len() < 1 {
         Err(Error::NotFound("No such tree".to_owned()))
     }
@@ -85,7 +130,7 @@ fn trees_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contri
         let tree = TreeDetail {
             id: tree.id,
             name: tree.name,
-            roots: res2
+            roots
         };
         Ok(rocket_contrib::Json(tree))
     }
@@ -118,6 +163,54 @@ fn nodes_post(query: rocket_contrib::Json<NodePostQuery>, state: rocket::State<S
             .get_result(&conn)
     }?;
     Ok(rocket_contrib::Json(res))
+}
+
+#[get("/nodes/<id>")]
+fn nodes_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contrib::Json<TreeNode>, Error> {
+    let conn = state.conn.get()?;
+    let res1 = {
+        use self::schema::node::dsl;
+        dsl::node
+            .filter(dsl::id.eq(id))
+            .select((dsl::id, dsl::text))
+            .first::<TreeNodeQuery>(&conn)
+    }?;
+    let res2 = {
+        use self::schema::node::dsl;
+        dsl::node
+            .filter(dsl::parent.eq(id))
+            .select((dsl::id, dsl::text))
+            .load::<TreeNodeQuery>(&conn)
+    }?;
+    let res3 = get_children(&res2.iter().map(|q| q.id).collect::<Vec<_>>(), &conn)?;
+
+    let mut children = res2.into_iter()
+        .map(|q| TreeNode {
+            id: q.id,
+            text: q.text,
+            children: Some(Vec::new())
+        }).collect::<Vec<_>>();
+
+    for child in res3 {
+        for root in children.iter_mut() {
+            if Some(root.id) == child.parent {
+                if let Some(ref mut children) = root.children {
+                    children.push(TreeNode {
+                        id: child.id,
+                        text: child.text,
+                        children: None
+                    });
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(rocket_contrib::Json(TreeNode {
+        id: res1.id,
+        text: res1.text,
+        children: Some(children)
+    }))
 }
 
 #[derive(Serialize)]
@@ -182,6 +275,6 @@ fn main() {
                 .build(diesel::r2d2::ConnectionManager::new(database_url))
                 .expect("Failed to construct connection pool")
         })
-        .mount("/", routes![trees_get, nodes_post, nodes_story_get])
+        .mount("/", routes![trees_get, nodes_post, nodes_story_get, nodes_get])
         .launch();
 }
