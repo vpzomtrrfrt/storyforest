@@ -3,6 +3,7 @@ table! {
         id -> Int4,
         tree -> Nullable<Int4>,
         text -> Text,
+        parent -> Nullable<Int4>,
     }
 }
 

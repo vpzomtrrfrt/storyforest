@@ -40,23 +40,55 @@ impl<'r> rocket::response::Responder<'r> for Error {
 }
 
 #[derive(Queryable, Serialize)]
+struct RootNode {
+    id: i32,
+    text: String
+}
+
+#[derive(Queryable, Serialize)]
 struct Tree {
     id: i32,
     name: String
 }
 
+#[derive(Queryable, Serialize)]
+struct TreeDetail {
+    id: i32,
+    name: String,
+    roots: Vec<RootNode>
+}
+
 #[get("/trees/<id>")]
-fn trees_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contrib::Json<Tree>, Error> {
+fn trees_get(id: i32, state: rocket::State<ServerState>) -> Result<rocket_contrib::Json<TreeDetail>, Error> {
     let conn = state.conn.get()?;
-    let res = schema::tree::dsl::tree.filter(schema::tree::dsl::id.eq(id)).load::<Tree>(&conn)?;
-    if res.len() < 1 {
+    let res1 = {
+        use self::schema::tree::dsl;
+        dsl::tree
+        .filter(dsl::id.eq(id))
+        .load::<Tree>(&conn)
+    }?;
+    let res2 = {
+        use self::schema::node::dsl;
+        dsl::node
+            .filter(dsl::tree.eq(id))
+            .filter(dsl::parent.is_null())
+            .select((dsl::id, dsl::text))
+            .load::<RootNode>(&conn)
+    }?;
+    if res1.len() < 1 {
         Err(Error::NotFound("No such tree".to_owned()))
     }
-    else if res.len() > 1 {
+    else if res1.len() > 1 {
         Err(Error::Internal("More than one tree returned for single ID".to_owned()))
     }
     else {
-        Ok(rocket_contrib::Json(res.into_iter().next().unwrap()))
+        let tree = res1.into_iter().next().unwrap();
+        let tree = TreeDetail {
+            id: tree.id,
+            name: tree.name,
+            roots: res2
+        };
+        Ok(rocket_contrib::Json(tree))
     }
 }
 
