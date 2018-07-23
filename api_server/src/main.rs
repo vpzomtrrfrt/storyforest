@@ -34,7 +34,7 @@ impl<'r> rocket::response::Responder<'r> for Error {
     }
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 struct TreeNodeQuery {
     pub id: i32,
     pub text: String,
@@ -65,6 +65,14 @@ struct NodeChild {
     id: i32,
     text: String,
     parent: Option<i32>,
+}
+
+#[derive(Serialize)]
+struct NodeResult {
+    id: i32,
+    text: String,
+    children: Vec<TreeNode>,
+    parent: Option<TreeNodeQuery>
 }
 
 fn get_children(parents: &[i32], conn: &diesel::pg::PgConnection) -> Result<Vec<NodeChild>, Error> {
@@ -168,14 +176,14 @@ fn nodes_post(
 fn nodes_get(
     id: i32,
     state: rocket::State<ServerState>,
-) -> Result<rocket_contrib::Json<TreeNode>, Error> {
+) -> Result<rocket_contrib::Json<NodeResult>, Error> {
     let conn = state.conn.get()?;
     let res1 = {
         use self::schema::node::dsl;
         dsl::node
             .filter(dsl::id.eq(id))
-            .select((dsl::id, dsl::text))
-            .first::<TreeNodeQuery>(&conn)
+            .select((dsl::id, dsl::text, dsl::parent))
+            .first::<NodeChild>(&conn)
     }?;
     let res2 = {
         use self::schema::node::dsl;
@@ -185,6 +193,18 @@ fn nodes_get(
             .load::<TreeNodeQuery>(&conn)
     }?;
     let res3 = get_children(&res2.iter().map(|q| q.id).collect::<Vec<_>>(), &conn)?;
+    let res4: Option<String> = match res1.parent {
+        Some(parent) => {
+            Some({
+                use self::schema::node::dsl;
+                dsl::node
+                    .filter(dsl::id.eq(parent))
+                    .select(dsl::text)
+                    .first(&conn)
+            }?)
+        },
+        None => None
+    };
 
     let mut children = res2
         .into_iter()
@@ -210,10 +230,16 @@ fn nodes_get(
         }
     }
 
-    Ok(rocket_contrib::Json(TreeNode {
+    Ok(rocket_contrib::Json(NodeResult {
+        parent: res4.map(|t| {
+            TreeNodeQuery {
+                id: res1.parent.unwrap(),
+                text: t
+            }
+        }),
         id: res1.id,
         text: res1.text,
-        children: Some(children),
+        children: children,
     }))
 }
 
