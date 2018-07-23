@@ -1,0 +1,9 @@
+{
+	"compilerOptions": {
+		"jsx": "react",
+		"jsxFactory": "h",
+		"keyofStringsOnly": true,
+		"strict": true,
+		"experimentalDecorators": true
+	}
+}
