@@ -4,6 +4,11 @@
 		"jsxFactory": "h",
 		"keyofStringsOnly": true,
 		"strict": true,
-		"experimentalDecorators": true
+		"experimentalDecorators": true,
+		"lib": [
+			"es2015",
+			"es2015.promise",
+			"dom"
+		]
 	}
 }

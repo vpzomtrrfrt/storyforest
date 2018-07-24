@@ -9,6 +9,7 @@ extern crate bcrypt;
 
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
+use std::ops::Deref;
 
 mod schema;
 mod paths;
@@ -21,6 +22,8 @@ quick_error! {
         BcryptError(e: bcrypt::BcryptError) { from() }
         NotFound(e: String)
         Internal(e: String)
+        Unauthenticated
+        Forbidden(e: String)
     }
 }
 
@@ -32,8 +35,40 @@ impl<'r> rocket::response::Responder<'r> for Error {
                 .header(rocket::http::ContentType::Plain)
                 .sized_body(std::io::Cursor::new(e))
                 .ok(),
+            Error::Forbidden(e) => rocket::Response::build()
+                .status(rocket::http::Status::Forbidden)
+                .header(rocket::http::ContentType::Plain)
+                .sized_body(std::io::Cursor::new(e))
+                .ok(),
+            Error::Unauthenticated => rocket::Response::build()
+                .status(rocket::http::Status::Unauthorized)
+                .header(rocket::http::ContentType::Plain)
+                .sized_body(std::io::Cursor::new("You must be logged in to do that."))
+                .ok(),
             _ => Err(rocket::http::Status::InternalServerError),
         }
+    }
+}
+
+pub struct UserID(i32);
+
+impl Deref for UserID {
+    type Target = i32;
+    fn deref(&self) -> &i32 {
+        &self.0
+    }
+}
+
+impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for UserID {
+    type Error = ();
+
+    fn from_request(request: &'a rocket::Request<'r>) -> rocket::request::Outcome<UserID, Self::Error> {
+        use rocket::outcome::IntoOutcome;
+        request.cookies()
+            .get_private("user_id")
+            .and_then(|cookie| cookie.value().parse().ok())
+            .map(UserID)
+            .or_forward(())
     }
 }
 
@@ -157,7 +192,12 @@ struct NodePostQuery {
 fn nodes_post(
     query: rocket_contrib::Json<NodePostQuery>,
     state: rocket::State<ServerState>,
+    user_id: Option<UserID>,
 ) -> Result<rocket_contrib::Json<i32>, Error> {
+    let user_id = match user_id {
+        None => return Err(Error::Unauthenticated),
+        Some(user_id) => user_id
+    };
     let conn = state.conn.get()?;
     let tree: i32 = {
         use self::schema::node::dsl;
@@ -170,6 +210,7 @@ fn nodes_post(
                 dsl::parent.eq(query.parent),
                 dsl::tree.eq(tree),
                 dsl::text.eq(query.text.to_owned()),
+                dsl::author.eq(user_id.deref())
             ))
             .returning(dsl::id)
             .get_result(&conn)
@@ -313,7 +354,7 @@ fn main() {
         })
         .mount(
             "/",
-            routes![trees_get, nodes_post, nodes_story_get, nodes_get, paths::users::users_post],
+            routes![trees_get, nodes_post, nodes_story_get, nodes_get, paths::users::users_post, paths::users::logins_post],
         )
         .launch();
 }

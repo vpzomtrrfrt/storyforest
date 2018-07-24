@@ -5,6 +5,7 @@ import 'preact/debug';
 
 import './styles.scss';
 
+import LoginPage from './LoginPage';
 import NewPostPage from './NewPostPage';
 import SignupPage from './SignupPage';
 
@@ -28,6 +29,19 @@ class DataCache {
 }
 
 export const dataCache = new DataCache();
+
+export function fetchStatus(response: Response) {
+	if(response.status < 200 || response.status >= 300) {
+		return response.text()
+			.then(txt => Promise.reject(txt));
+	}
+	return Promise.resolve(response);
+}
+
+export function showError(err: any) {
+	console.error(err);
+	alert(err);
+}
 
 interface TreeNodeQuery {
 	id: string;
@@ -128,6 +142,7 @@ const App = function() {
 			<Route path="/nodes/:id" component={NodePage} />
 			<Route path="/postNew/:parentID" component={NewPostPage} />
 			<Route path="/register" component={SignupPage} />
+			<Route path="/login" component={LoginPage} />
 		</Router>
 	</div>;
 };
