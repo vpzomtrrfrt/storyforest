@@ -1,5 +1,6 @@
 const ForkTsCheckerPlugin = require('fork-ts-checker-webpack-plugin');
 const HtmlPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const webpack = require('webpack');
 
 module.exports = {
@@ -14,6 +15,17 @@ module.exports = {
 						transpileOnly: true
 					}
 				}
+			},
+			{
+				test: /\.scss$/,
+				exclude: /node_modules/,
+				use: [
+					{
+						loader: MiniCssExtractPlugin.loader
+					},
+					"css-loader",
+					"sass-loader"
+				]
 			}
 		]
 	},
@@ -25,6 +37,9 @@ module.exports = {
 		new HtmlPlugin(),
 		new webpack.DefinePlugin({
 			API_HOST: JSON.stringify(process.env.API_HOST || "/api")
+		}),
+		new MiniCssExtractPlugin({
+			filename: "[hash].css"
 		})
 	],
 	entry: './src/main.tsx',

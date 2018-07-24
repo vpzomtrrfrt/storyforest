@@ -3,6 +3,8 @@ import Router, { Route } from 'preact-router';
 
 import 'preact/debug';
 
+import './styles.scss';
+
 declare var API_HOST: string;
 
 class DataCache {
@@ -20,10 +22,19 @@ class DataCache {
 
 const dataCache = new DataCache();
 
-interface StoryNode {
+interface TreeNodeQuery {
 	id: string;
 	text: string;
+}
+
+interface StoryNode extends TreeNodeQuery {
 	children: StoryNode[] | null;
+}
+
+interface NodeResult {
+	text: string;
+	children: StoryNode[];
+	parent: TreeNodeQuery | null;
 }
 
 interface NodeMap {
@@ -33,7 +44,7 @@ interface NodeMap {
 function StoryTreeNodeLink(props: {node: StoryNode}): JSX.Element {
 	return <div>
 		<a href={"/nodes/" + props.node.id}>
-			<div>
+			<div class="node">
 				{props.node.text}
 			</div>
 		</a>
@@ -50,17 +61,34 @@ interface NodePageProps {
 }
 
 interface NodePageState {
-	data?: StoryNode;
+	data?: NodeResult;
 	loadingID: string;
 }
 
 class NodePage extends Component<NodePageProps, NodePageState> {
 	public render(props: NodePageProps, state: NodePageState) {
 		return <div>
-			hi(node:{props.id})
-
 			{state.data ? <div>
-				<StoryTreeNodeLink node={state.data} />
+				{state.data.parent && <a href={"/nodes/" + state.data.parent.id}>
+					<div class="node parent">
+						{state.data.parent.text}
+					</div>
+				</a>}
+				<div>
+					<div class="node main">
+						{state.data.text}
+					</div>
+					<ul>
+						<li>
+							<a href={"/postNew/" + props.id} class="node virtual">
+								✏️ Write a new branch
+							</a>
+						</li>
+						{state.data.children.map(child => <li key={child.id}>
+							<StoryTreeNodeLink node={child} />
+						</li>)}
+					</ul>
+				</div>
 			</div> : <div>Loading...</div>}
 		</div>;
 	}
@@ -69,7 +97,7 @@ class NodePage extends Component<NodePageProps, NodePageState> {
 		this.load(this.props.id);
 	}
 
-	public componentWillReceiveProps(props) {		
+	public componentWillReceiveProps(props: NodePageProps) {
 		if(this.state.loadingID === props.id) return;
 		this.load(props.id);
 	}

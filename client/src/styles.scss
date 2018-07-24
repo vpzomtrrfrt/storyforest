@@ -1,0 +1,13 @@
+.node {
+	border: 1px solid saddlebrown;
+	padding: .5rem;
+	display: inline-block;
+
+	&.virtual {
+		border-style: dashed;
+	}
+}
+
+ul > li .node {
+	margin-bottom: .5rem;
+}

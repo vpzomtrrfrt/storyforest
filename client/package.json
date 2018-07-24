@@ -1,11 +1,15 @@
 {
   "dependencies": {
     "connect-history-api-fallback": "^1.5.0",
+    "css-loader": "^1.0.0",
     "express-http-proxy": "^1.2.0",
     "fork-ts-checker-webpack-plugin": "^0.4.3",
     "html-webpack-plugin": "^3.2.0",
+    "mini-css-extract-plugin": "^0.4.1",
+    "node-sass": "^4.9.2",
     "preact": "^8.2.9",
     "preact-router": "^2.6.1",
+    "sass-loader": "^7.0.3",
     "ts-loader": "^4.4.2",
     "typescript": "^2.9.2",
     "webpack": "^4.16.1",
