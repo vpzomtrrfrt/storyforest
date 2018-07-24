@@ -6,6 +6,7 @@ import 'preact/debug';
 import './styles.scss';
 
 import NewPostPage from './NewPostPage';
+import SignupPage from './SignupPage';
 
 declare var API_HOST: string;
 
@@ -126,6 +127,7 @@ const App = function() {
 		<Router>
 			<Route path="/nodes/:id" component={NodePage} />
 			<Route path="/postNew/:parentID" component={NewPostPage} />
+			<Route path="/register" component={SignupPage} />
 		</Router>
 	</div>;
 };

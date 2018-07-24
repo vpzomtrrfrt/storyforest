@@ -5,17 +5,20 @@
 extern crate diesel;
 #[macro_use]
 extern crate quick_error;
+extern crate bcrypt;
 
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
 
 mod schema;
+mod paths;
 
 quick_error! {
     #[derive(Debug)]
     enum Error {
         PoolError(e: diesel::r2d2::PoolError) { from() }
         DBError(e: diesel::result::Error) { from() }
+        BcryptError(e: bcrypt::BcryptError) { from() }
         NotFound(e: String)
         Internal(e: String)
     }
@@ -92,7 +95,9 @@ fn trees_get(
     let conn = state.conn.get()?;
     let res1 = {
         use self::schema::tree::dsl;
-        dsl::tree.filter(dsl::id.eq(id)).load::<Tree>(&conn)
+        dsl::tree.filter(dsl::id.eq(id))
+            .select((dsl::id, dsl::name))
+            .load::<Tree>(&conn)
     }?;
     let res2 = {
         use self::schema::node::dsl;
@@ -308,7 +313,7 @@ fn main() {
         })
         .mount(
             "/",
-            routes![trees_get, nodes_post, nodes_story_get, nodes_get],
+            routes![trees_get, nodes_post, nodes_story_get, nodes_get, paths::users::users_post],
         )
         .launch();
 }
