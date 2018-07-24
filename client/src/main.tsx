@@ -5,6 +5,8 @@ import 'preact/debug';
 
 import './styles.scss';
 
+import NewPostPage from './NewPostPage';
+
 declare var API_HOST: string;
 
 class DataCache {
@@ -18,9 +20,13 @@ class DataCache {
 		}
 		return this.map[key];
 	}
+
+	public invalidate(key: string) {
+		delete this.map[key];
+	}
 }
 
-const dataCache = new DataCache();
+export const dataCache = new DataCache();
 
 interface TreeNodeQuery {
 	id: string;
@@ -31,7 +37,7 @@ interface StoryNode extends TreeNodeQuery {
 	children: StoryNode[] | null;
 }
 
-interface NodeResult {
+export interface NodeResult {
 	text: string;
 	children: StoryNode[];
 	parent: TreeNodeQuery | null;
@@ -110,7 +116,6 @@ class NodePage extends Component<NodePageProps, NodePageState> {
 		}, id)
 			.then(data => {
 				if(id !== this.state.loadingID) return;
-				data.id = id;
 				this.setState({data});
 			});
 	}
@@ -120,6 +125,7 @@ const App = function() {
 	return <div>
 		<Router>
 			<Route path="/nodes/:id" component={NodePage} />
+			<Route path="/postNew/:parentID" component={NewPostPage} />
 		</Router>
 	</div>;
 };

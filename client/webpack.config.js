@@ -43,6 +43,7 @@ module.exports = {
 		})
 	],
 	entry: './src/main.tsx',
+	devtool: 'cheap-eval-source-map',
 	output: {
 		publicPath: "/"
 	},
