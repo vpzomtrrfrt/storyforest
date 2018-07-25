@@ -5,6 +5,7 @@ import 'preact/debug';
 
 import './styles.scss';
 
+import StoryPage from './StoryPage';
 import LoginPage from './LoginPage';
 import NewPostPage from './NewPostPage';
 import SignupPage from './SignupPage';
@@ -43,7 +44,7 @@ export function showError(err: any) {
 	alert(err);
 }
 
-interface TreeNodeQuery {
+export interface TreeNodeQuery {
 	id: string;
 	text: string;
 }
@@ -96,9 +97,11 @@ class NodePage extends Component<NodePageProps, NodePageState> {
 					</div>
 				</a>}
 				<div>
-					<div class="node main">
-						{state.data.text}
-					</div>
+					<a href={"/nodes/" + props.id + "/story"}>
+						<div class="node main">
+							{state.data.text}
+						</div>
+					</a>
 					<ul>
 						<li>
 							<a href={"/postNew/" + props.id} class="node virtual">
@@ -140,6 +143,7 @@ const App = function() {
 	return <div>
 		<Router>
 			<Route path="/nodes/:id" component={NodePage} />
+			<Route path="/nodes/:id/story" component={StoryPage} />
 			<Route path="/postNew/:parentID" component={NewPostPage} />
 			<Route path="/register" component={SignupPage} />
 			<Route path="/login" component={LoginPage} />
